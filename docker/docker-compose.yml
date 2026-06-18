@@ -1,0 +1,111 @@
+version: "3.8"
+
+services:
+  # ============================================================
+  # MySQL 8.0 — 主数据库
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: studyroom-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: study_room
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../第三阶段/sql/mysql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ../第三阶段/sql/mysql/02-indexes.sql:/docker-entrypoint-initdb.d/02-indexes.sql
+      - ../第三阶段/sql/mysql/03-test-data.sql:/docker-entrypoint-initdb.d/03-test-data.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - studyroom-net
+
+  # ============================================================
+  # 达梦8 — 国产数据库（适配）
+  # ============================================================
+  dameng:
+    image: xuxuclassmate/dameng:latest
+    container_name: studyroom-dameng
+    restart: unless-stopped
+    ports:
+      - "5236:5236"
+    environment:
+      DM_PWD: SYSDBA001
+      PAGE_SIZE: 16
+      EXTENT_SIZE: 16
+      CASE_SENSITIVE: 0
+    volumes:
+      - dameng_data:/opt/dmdbms/data
+      - ../第三阶段/sql/dameng:/opt/init-sql
+    healthcheck:
+      test: ["CMD", "/opt/dmdbms/bin/disql", "SYSDBA/SYSDBA001@localhost:5236", "-e", "select 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - studyroom-net
+
+  # ============================================================
+  # Redis — 缓存与限流组件
+  # ============================================================
+  redis:
+    image: redis:7.0
+    container_name: studyroom-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - studyroom-net
+
+  # ============================================================
+  # RabbitMQ — 消息队列服务（包含管理界面）
+  # ============================================================
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: studyroom-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    networks:
+      - studyroom-net
+
+volumes:
+  mysql_data:
+    driver: local
+  dameng_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  studyroom-net:
+    driver: bridge
