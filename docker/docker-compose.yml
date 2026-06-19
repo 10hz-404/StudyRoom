@@ -64,7 +64,7 @@ services:
       - "6379:6379"
     command: redis-server --requirepass redis123
     volumes:
-      - redis_data:/data
+      - redis_data_v2:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
       interval: 10s
@@ -125,7 +125,7 @@ volumes:
     driver: local
   dameng_data:
     driver: local
-  redis_data:
+  redis_data_v2:
     driver: local
   rabbitmq_data:
     driver: local
