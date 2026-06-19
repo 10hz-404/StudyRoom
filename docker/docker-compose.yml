@@ -96,6 +96,30 @@ services:
     networks:
       - studyroom-net
 
+  # ============================================================
+  # Nacos — 服务注册与配置中心
+  # ============================================================
+  nacos:
+    image: nacos/nacos-server:v2.2.0
+    container_name: studyroom-nacos
+    restart: unless-stopped
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    environment:
+      - MODE=standalone
+      - PREFER_HOST_MODE=hostname
+    volumes:
+      - nacos_data:/home/nacos/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    networks:
+      - studyroom-net
+
 volumes:
   mysql_data:
     driver: local
@@ -104,6 +128,8 @@ volumes:
   redis_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  nacos_data:
     driver: local
 
 networks:
