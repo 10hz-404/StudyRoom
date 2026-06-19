@@ -21,3 +21,7 @@ logs/
 *.class
 *.jar
 *.war
+
+# Local configurations
+**/application-local.yml
+**/application-local.properties
