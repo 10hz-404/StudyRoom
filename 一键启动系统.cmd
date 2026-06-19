@@ -5,6 +5,12 @@ echo ============================================================
 
 cd /d "%~dp0"
 
+:: ============================================================
+:: [Optional] 如果您在 Windows 环境变量中配置的 Key 暂时未能同步刷新生效，
+:: 您可以直接取消下面这行的注释（删除前面的“::”），并填入您真实的 API Key：
+:: set DEEPSEEK_API_KEY=your_real_deepseek_api_key_here
+:: ============================================================
+
 echo 1. Starting Docker middleware (Nacos, MySQL, Redis, RabbitMQ)...
 set PATH=C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\nodejs;%PATH%
 cd docker
