@@ -1,0 +1,180 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyroom-mysql
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studyroom-mysql
+  template:
+    metadata:
+      labels:
+        app: studyroom-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root123"
+        - name: MYSQL_DATABASE
+          value: "study_room"
+        volumeMounts:
+        - name: init-sql-volume
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: init-sql-volume
+        configMap:
+          name: mysql-init-sql-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studyroom-mysql
+  namespace: default
+spec:
+  selector:
+    app: studyroom-mysql
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyroom-redis
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studyroom-redis
+  template:
+    metadata:
+      labels:
+        app: studyroom-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0
+        imagePullPolicy: IfNotPresent
+        command: ["redis-server", "--requirepass", "redis123"]
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studyroom-redis
+  namespace: default
+spec:
+  selector:
+    app: studyroom-redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyroom-rabbitmq
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studyroom-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: studyroom-rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.11-management
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "admin"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "admin123"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studyroom-rabbitmq
+  namespace: default
+spec:
+  selector:
+    app: studyroom-rabbitmq
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: 5672
+  - name: management
+    port: 15672
+    targetPort: 15672
+    nodePort: 31672
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyroom-nacos
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studyroom-nacos
+  template:
+    metadata:
+      labels:
+        app: studyroom-nacos
+    spec:
+      containers:
+      - name: nacos
+        image: nacos/nacos-server:v2.2.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8848
+        - containerPort: 9848
+        - containerPort: 9849
+        env:
+        - name: MODE
+          value: "standalone"
+        - name: PREFER_HOST_MODE
+          value: "hostname"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studyroom-nacos
+  namespace: default
+spec:
+  selector:
+    app: studyroom-nacos
+  ports:
+  - name: http
+    port: 8848
+    targetPort: 8848
+    nodePort: 31848
+  - name: grpc-sdk
+    port: 9848
+    targetPort: 9848
+  - name: grpc-cluster
+    port: 9849
+    targetPort: 9849
+  type: NodePort

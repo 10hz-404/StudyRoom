@@ -37,3 +37,12 @@ spring:
           uri: lb://study-room-ai
           predicates:
             - Path=/api/v1/recommendations/**, /api/v1/ai/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'prometheus,health,info'
+  endpoint:
+    prometheus:
+      enabled: true

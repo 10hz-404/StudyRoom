@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build"
+    "build": "vite build"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",

@@ -1,0 +1,267 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-user
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-user
+  template:
+    metadata:
+      labels:
+        app: study-room-user
+    spec:
+      containers:
+      - name: study-room-user
+        image: study-room-user:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MYSQL_URL
+          value: "jdbc:mysql://studyroom-mysql:3306/study_room?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8&useUnicode=true"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "studyroom-redis"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-user-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-user
+  ports:
+  - port: 8081
+    targetPort: 8081
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-room
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-room
+  template:
+    metadata:
+      labels:
+        app: study-room-room
+    spec:
+      containers:
+      - name: study-room-room
+        image: study-room-room:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MYSQL_URL
+          value: "jdbc:mysql://studyroom-mysql:3306/study_room?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8&useUnicode=true"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "studyroom-redis"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-room-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-room
+  ports:
+  - port: 8082
+    targetPort: 8082
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-reservation
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-reservation
+  template:
+    metadata:
+      labels:
+        app: study-room-reservation
+    spec:
+      containers:
+      - name: study-room-reservation
+        image: study-room-reservation:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MYSQL_URL
+          value: "jdbc:mysql://studyroom-mysql:3306/study_room?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8&useUnicode=true"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "studyroom-redis"
+        - name: SPRING_RABBITMQ_HOST
+          value: "studyroom-rabbitmq"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-reservation-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-reservation
+  ports:
+  - port: 8083
+    targetPort: 8083
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-violation
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-violation
+  template:
+    metadata:
+      labels:
+        app: study-room-violation
+    spec:
+      containers:
+      - name: study-room-violation
+        image: study-room-violation:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8084
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MYSQL_URL
+          value: "jdbc:mysql://studyroom-mysql:3306/study_room?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8&useUnicode=true"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "studyroom-redis"
+        - name: SPRING_RABBITMQ_HOST
+          value: "studyroom-rabbitmq"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-violation-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-violation
+  ports:
+  - port: 8084
+    targetPort: 8084
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-ai
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-ai
+  template:
+    metadata:
+      labels:
+        app: study-room-ai
+    spec:
+      containers:
+      - name: study-room-ai
+        image: study-room-ai:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MYSQL_URL
+          value: "jdbc:mysql://studyroom-mysql:3306/study_room?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8&useUnicode=true"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "studyroom-redis"
+        - name: SPRING_RABBITMQ_HOST
+          value: "studyroom-rabbitmq"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-ai-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-ai
+  ports:
+  - port: 8085
+    targetPort: 8085
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: study-room-gateway
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: study-room-gateway
+  template:
+    metadata:
+      labels:
+        app: study-room-gateway
+    spec:
+      containers:
+      - name: study-room-gateway
+        image: study-room-gateway:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "local"
+        - name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR
+          value: "studyroom-nacos:8848"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: study-room-gateway-service
+  namespace: default
+spec:
+  selector:
+    app: study-room-gateway
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    nodePort: 31080
+  type: NodePort

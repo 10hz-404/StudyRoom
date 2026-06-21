@@ -45,3 +45,12 @@ logging:
     root: info
     org.mybatis.spring: info
     org.apache.ibatis: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'prometheus,health,info'
+  endpoint:
+    prometheus:
+      enabled: true

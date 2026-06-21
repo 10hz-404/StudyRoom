@@ -53,3 +53,12 @@ deepseek:
   api-key: ${DEEPSEEK_API_KEY:your_api_key_here}
   base-url: https://api.deepseek.com
   model: deepseek-chat
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'prometheus,health,info'
+  endpoint:
+    prometheus:
+      enabled: true

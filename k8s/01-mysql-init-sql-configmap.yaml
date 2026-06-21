@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-sql-config
+  namespace: default
+data:
+  01-schema.sql: |
+    -- ============================================================
+    -- 校园自习室预约系统 — MySQL 8.0 建表脚本
+    -- 数据库名称: study_room
+    -- 版本: V1.0 | 日期: 2026-06-17
+    -- ============================================================
+
+    CREATE DATABASE IF NOT EXISTS study_room
+      DEFAULT CHARACTER SET utf8mb4
+      DEFAULT COLLATE utf8mb4_unicode_ci;
+
+    USE study_room;
+
+    -- -----------------------------------------------------------
+    -- 1. 用户表 (user)
+    -- 存储系统用户，含学生和管理员
+    -- -----------------------------------------------------------
+    CREATE TABLE `user` (
+      `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '用户ID',
+      `student_no`  VARCHAR(20)  NOT NULL                 COMMENT '学号/工号，登录账号',
+      `name`        VARCHAR(50)  NOT NULL                 COMMENT '姓名',
+      `password`    VARCHAR(200) NOT NULL                 COMMENT 'BCrypt加密后的密码密文',
+      `role`        VARCHAR(10)  NOT NULL DEFAULT 'STUDENT' COMMENT '角色: STUDENT/ADMIN',
+      `status`      VARCHAR(10)  NOT NULL DEFAULT 'ACTIVE'  COMMENT '状态: ACTIVE/DISABLED',
+      `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      PRIMARY KEY (`id`),
+      UNIQUE INDEX `uk_student_no` (`student_no`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+    -- -----------------------------------------------------------
+    -- 2. 自习室表 (study_room)
+    -- 存储自习室基本信息
+    -- -----------------------------------------------------------
+    CREATE TABLE `study_room` (
+      `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自习室ID',
+      `room_name`   VARCHAR(100) NOT NULL                 COMMENT '自习室名称',
+      `location`    VARCHAR(200) NOT NULL                 COMMENT '位置描述（如：图书馆3楼A区）',
+      `status`      VARCHAR(10)  NOT NULL DEFAULT 'ACTIVE'  COMMENT '状态: ACTIVE/DISABLED',
+      `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      PRIMARY KEY (`id`),
+      INDEX `idx_room_status` (`status`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='自习室表';
+
+    -- -----------------------------------------------------------
+    -- 3. 座位表 (seat)
+    -- 存储每个自习室内的座位信息
+    -- -----------------------------------------------------------
+    CREATE TABLE `seat` (
+      `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '座位ID',
+      `room_id`     BIGINT       NOT NULL                 COMMENT '所属自习室ID',
+      `seat_no`     VARCHAR(20)  NOT NULL                 COMMENT '座位编号（如：A-001）',
+      `status`      VARCHAR(15)  NOT NULL DEFAULT 'AVAILABLE' COMMENT '座位状态: AVAILABLE/OCCUPIED/MAINTENANCE',
+      `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      PRIMARY KEY (`id`),
+      UNIQUE INDEX `uk_room_seat` (`room_id`, `seat_no`),
+      INDEX `idx_room_status` (`room_id`, `status`),
+      CONSTRAINT `fk_seat_room` FOREIGN KEY (`room_id`) REFERENCES `study_room`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='座位表';
+
+    -- -----------------------------------------------------------
+    -- 4. 预约表 (reservation) — 系统核心表
+    -- 存储学生预约记录，座位冲突检测的核心表
+    -- -----------------------------------------------------------
+    CREATE TABLE `reservation` (
+      `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '预约ID',
+      `user_id`      BIGINT       NOT NULL                 COMMENT '预约用户ID',
+      `seat_id`      BIGINT       NOT NULL                 COMMENT '预约座位ID',
+      `reserve_date` DATE         NOT NULL                 COMMENT '预约日期',
+      `start_time`   TIME         NOT NULL                 COMMENT '预约开始时间',
+      `end_time`     TIME         NOT NULL                 COMMENT '预约结束时间',
+      `status`       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'  COMMENT '预约状态: ACTIVE/CHECKED_IN/COMPLETED/CANCELLED/NO_SHOW',
+      `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      PRIMARY KEY (`id`),
+      INDEX `idx_seat_date_time` (`seat_id`, `reserve_date`, `start_time`, `end_time`),
+      INDEX `idx_reserve_date_status` (`reserve_date`, `status`),
+      INDEX `idx_user_date` (`user_id`, `reserve_date`),
+      CONSTRAINT `fk_reserve_user` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+      CONSTRAINT `fk_reserve_seat` FOREIGN KEY (`seat_id`) REFERENCES `seat`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预约表';
+
+    -- -----------------------------------------------------------
+    -- 5. 考勤表 (attendance)
+    -- 存储签到/签退记录，与预约一对一
+    -- -----------------------------------------------------------
+    CREATE TABLE `attendance` (
+      `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '考勤ID',
+      `reservation_id`  BIGINT       NOT NULL                 COMMENT '关联预约ID（唯一）',
+      `check_in_time`   DATETIME     DEFAULT NULL             COMMENT '签到时间',
+      `check_out_time`  DATETIME     DEFAULT NULL             COMMENT '签退时间',
+      `status`          VARCHAR(20)  NOT NULL DEFAULT 'NOT_CHECKED_IN' COMMENT '考勤状态: NOT_CHECKED_IN/CHECKED_IN/CHECKED_OUT/ABNORMAL',
+      `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `update_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      PRIMARY KEY (`id`),
+      UNIQUE INDEX `uk_reservation` (`reservation_id`),
+      INDEX `idx_att_status` (`status`),
+      CONSTRAINT `fk_att_reserve` FOREIGN KEY (`reservation_id`) REFERENCES `reservation`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='考勤表';
+
+    -- -----------------------------------------------------------
+    -- 6. 违规表 (violation)
+    -- 存储系统自动生成的违规记录
+    -- -----------------------------------------------------------
+    CREATE TABLE `violation` (
+      `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '违规ID',
+      `user_id`         BIGINT       NOT NULL                 COMMENT '违规用户ID',
+      `reservation_id`  BIGINT       NOT NULL                 COMMENT '关联预约ID',
+      `violation_type`  VARCHAR(20)  NOT NULL                 COMMENT '违规类型: NO_SHOW（未签到）/ NO_CHECKOUT（未签退）',
+      `status`          VARCHAR(15)  NOT NULL DEFAULT 'PENDING' COMMENT '处理状态: PENDING/PROCESSED/DISMISSED',
+      `process_remark`  VARCHAR(500) DEFAULT NULL             COMMENT '管理员处理备注',
+      `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `update_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      PRIMARY KEY (`id`),
+      UNIQUE INDEX `uk_user_reserve_type` (`user_id`, `reservation_id`, `violation_type`),
+      INDEX `idx_violation_status` (`status`, `create_time`),
+      INDEX `idx_violation_user` (`user_id`, `create_time`),
+      CONSTRAINT `fk_vio_user` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+      CONSTRAINT `fk_vio_reserve` FOREIGN KEY (`reservation_id`) REFERENCES `reservation`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='违规表';
+
+    -- -----------------------------------------------------------
+    -- 7. 用户偏好表 (user_preference) — AI 扩展表①
+    -- 存储用户历史偏好，供大模型推荐使用
+    -- -----------------------------------------------------------
+    CREATE TABLE `user_preference` (
+      `id`                BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '偏好ID',
+      `user_id`           BIGINT       NOT NULL                 COMMENT '用户ID',
+      `prefer_room_id`    BIGINT       DEFAULT NULL             COMMENT '偏好的自习室ID',
+      `prefer_time_period` VARCHAR(20) DEFAULT NULL             COMMENT '偏好时段: MORNING/AFTERNOON/EVENING',
+      `prefer_quiet_level` TINYINT      DEFAULT NULL             COMMENT '安静偏好等级: 1~5',
+      `total_reservations` INT          NOT NULL DEFAULT 0       COMMENT '累计预约次数（用于行为分析）',
+      `updated_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后更新时间',
+      PRIMARY KEY (`id`),
+      UNIQUE INDEX `uk_user_pref` (`user_id`),
+      CONSTRAINT `fk_pref_user` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+      CONSTRAINT `fk_pref_room` FOREIGN KEY (`prefer_room_id`) REFERENCES `study_room`(`id`) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户偏好表（AI扩展）';
+
+    -- -----------------------------------------------------------
+    -- 8. AI 分析日志表 (ai_analysis_log) — AI 扩展表②
+    -- 同时承载：推荐结果存储 + 异常分析记录 + 用户行为快照
+    -- -----------------------------------------------------------
+    CREATE TABLE `ai_analysis_log` (
+      `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '日志ID',
+      `biz_type`        VARCHAR(30)  NOT NULL                 COMMENT '业务类型: RECOMMEND/ANALYSIS/BEHAVIOR',
+      `biz_id`          BIGINT       DEFAULT NULL             COMMENT '关联业务记录ID（预约ID/违规ID等）',
+      `user_id`         BIGINT       DEFAULT NULL             COMMENT '关联用户ID',
+      `analysis_type`   VARCHAR(50)  NOT NULL                 COMMENT '分析子类型: ROOM_RECOMMEND/ANOMALY_CHECKIN/ANOMALY_CHECKOUT/USER_CLICK/USER_SEARCH/USER_CANCEL',
+      `input_snapshot`  JSON         DEFAULT NULL             COMMENT 'AI输入快照（JSON格式，含候选自习室/学生偏好/时间上下文等）',
+      `result_snapshot` JSON         DEFAULT NULL             COMMENT 'AI输出快照（JSON格式，含推荐排序/异常原因/处理建议等）',
+      `model`           VARCHAR(50)  DEFAULT NULL             COMMENT '调用的大模型名称（如：DeepSeek-V3）',
+      `latency_ms`      INT          DEFAULT NULL             COMMENT 'API调用耗时（毫秒）',
+      `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      PRIMARY KEY (`id`),
+      INDEX `idx_log_biz_type` (`biz_type`, `create_time`),
+      INDEX `idx_log_user` (`user_id`, `create_time`),
+      INDEX `idx_log_analysis_type` (`analysis_type`, `create_time`),
+      CONSTRAINT `fk_log_user` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI分析日志表（AI扩展：推荐结果+异常分析+行为记录）';
+
+  03-test-data.sql: |
+    -- ============================================================
+    -- 校园自习室预约系统 — 通用测试数据（MySQL / 达梦8 共用）
+    -- 原则：零数据库专有函数，纯标准 SQL，适配双库
+    -- 版本: V2.0 | 日期: 2026-06-17
+    -- ============================================================
+
+    USE study_room;
+
+    INSERT INTO user (student_no, name, password, role, status) VALUES
+    ('A001', '张管理', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'ADMIN', 'ACTIVE'),
+    ('A002', '李管理', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'ADMIN', 'ACTIVE'),
+    ('S2024001', '王同学', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'STUDENT', 'ACTIVE'),
+    ('S2024002', '陈同学', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'STUDENT', 'ACTIVE'),
+    ('S2024003', '刘同学', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'STUDENT', 'ACTIVE'),
+    ('S2024004', '赵同学', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'STUDENT', 'ACTIVE'),
+    ('S2024005', '周同学', '$2a$12$LJ3m4ys3Lg3Gxj6fzP5KoeUyWEiOmFSPQhjYgkqKpE7XvGy1AHu6e', 'STUDENT', 'DISABLED');
+
+    INSERT INTO study_room (room_name, location, status) VALUES
+    ('图书馆自习室A', '图书馆3楼A区', 'ACTIVE'),
+    ('图书馆自习室B', '图书馆3楼B区', 'ACTIVE'),
+    ('教学楼自习室', '教学楼5楼501室', 'ACTIVE');
+
+    INSERT INTO seat (room_id, seat_no, status) VALUES
+    (1, 'A-001', 'AVAILABLE'), (1, 'A-002', 'AVAILABLE'), (1, 'A-003', 'OCCUPIED'),
+    (1, 'A-004', 'AVAILABLE'), (1, 'A-005', 'MAINTENANCE'),
+    (2, 'B-001', 'AVAILABLE'), (2, 'B-002', 'AVAILABLE'), (2, 'B-003', 'AVAILABLE'),
+    (2, 'B-004', 'AVAILABLE'), (2, 'B-005', 'AVAILABLE'),
+    (3, 'C-001', 'AVAILABLE'), (3, 'C-002', 'AVAILABLE'), (3, 'C-003', 'AVAILABLE'),
+    (3, 'C-004', 'AVAILABLE'), (3, 'C-005', 'AVAILABLE');
+
+    INSERT INTO reservation (user_id, seat_id, reserve_date, start_time, end_time, status) VALUES
+    (3, 1, '2026-06-17', '08:00:00', '10:00:00', 'COMPLETED'),
+    (3, 2, '2026-06-17', '10:00:00', '12:00:00', 'CHECKED_IN'),
+    (4, 6, '2026-06-17', '08:00:00', '10:00:00', 'ACTIVE'),
+    (4, 7, '2026-06-17', '14:00:00', '16:00:00', 'CANCELLED'),
+    (5, 11, '2026-06-17', '09:00:00', '11:00:00', 'ACTIVE'),
+    (3, 1, '2026-06-16', '08:00:00', '10:00:00', 'COMPLETED'),
+    (4, 2, '2026-06-16', '08:00:00', '10:00:00', 'NO_SHOW'),
+    (5, 6, '2026-06-18', '08:00:00', '10:00:00', 'ACTIVE'),
+    (3, 7, '2026-06-18', '14:00:00', '16:00:00', 'ACTIVE');
+
+    INSERT INTO attendance (reservation_id, check_in_time, check_out_time, status) VALUES
+    (1, '2026-06-17 07:55:00', '2026-06-17 10:02:00', 'CHECKED_OUT'),
+    (2, '2026-06-17 10:01:00', NULL, 'CHECKED_IN'),
+    (6, '2026-06-16 07:58:00', '2026-06-16 10:05:00', 'CHECKED_OUT');
+
+    INSERT INTO violation (user_id, reservation_id, violation_type, status, process_remark) VALUES
+    (4, 7, 'NO_SHOW', 'PENDING', NULL),
+    (4, 3, 'NO_SHOW', 'PENDING', NULL),
+    (3, 1, 'NO_SHOW', 'PROCESSED', '已确认，扣除信用分');
+
+    INSERT INTO user_preference (user_id, prefer_room_id, prefer_time_period, prefer_quiet_level, total_reservations) VALUES
+    (3, 1, 'MORNING', 5, 3),
+    (4, 2, 'AFTERNOON', 3, 1),
+    (5, 3, 'MORNING', 4, 2);
+
+    INSERT INTO ai_analysis_log (biz_type, biz_id, user_id, analysis_type, input_snapshot, result_snapshot, model, latency_ms) VALUES
+     ('RECOMMEND', NULL, 3, 'ROOM_RECOMMEND',
+      '{"rooms":[{"id":1,"name":"图书馆自习室A","available":3}]}',
+      '[{"room_id":1,"score":0.92}]', 'DeepSeek-V3', 3200),
+     ('ANALYSIS', 7, 4, 'ANOMALY_CHECKIN',
+      '{"reservation_id":7,"status":"NO_SHOW"}',
+      '{"severity":"LOW","suggestion":"发送提醒"}', 'DeepSeek-V3', 4500),
+     ('BEHAVIOR', NULL, 3, 'USER_CLICK', '{"target":"SEAT","id":1}', NULL, NULL, NULL);
